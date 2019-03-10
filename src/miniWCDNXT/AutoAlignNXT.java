@@ -67,6 +67,7 @@ public class AutoAlignNXT {
             	updateEncoders();
             	
             	leftPower = limit(leftPower, 1);
+		rightPower = limit(rightPower, 1)
 
 
             	//System.out.println(leftDist + "," + rightDist + ";" + turnCount);
