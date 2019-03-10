@@ -25,12 +25,15 @@ public class AutoAlignNXT {
 	static double leftDist, rightDist;
 	static int leftPower, rightPower = 0;
 	static int turnCount = 0;
+	
+	static PID leftPID;
+	static PID rightPID;
 
 
 	public static void main(String[] args) {
 		System.out.println("Motors Initializing");
-		NXTMotor leftDrive = new NXTMotor(MotorPort.C);
-		NXTMotor rightDrive = new NXTMotor(MotorPort.A);
+		leftDrive = new NXTMotor(MotorPort.C);
+		rightDrive = new NXTMotor(MotorPort.A);
 		leftDrive.backward();
 		rightDrive.backward();
 		System.out.println("Motors Initialized");
@@ -40,8 +43,9 @@ public class AutoAlignNXT {
 		forwardDist = y - (turnAngle * Math.sin(turnAngle));
 		
 		System.out.println("arc:" + arcLength + " d:" + forwardDist);
-
-	    
+		
+		leftPID = new PID(1,0,0,0.5);
+		rightPID = new PID(1,0,0,0.5);
 		
         Sound.beepSequenceUp();   // make sound when ready.
 
@@ -49,15 +53,16 @@ public class AutoAlignNXT {
         while(true){
         	Button.waitForAnyPress(); //BUTTON PRESS
         	turnCount = 0;
-        	initLeftTick = leftDrive.getTachoCount();
-    	    initRightTick = rightDrive.getTachoCount();
+        	resetEncoders();
+        	
+        	
+        	
     	    System.out.println("SHIFT initLeftDist: " + initLeftTick);
     	    System.out.println("SHIFT initRightDist: " + initRightTick);
 
-            while(turnCount != 4){
+            while(turnCount != 3){
 
-            	leftDist = -(leftDrive.getTachoCount() - initLeftTick) * inchesPerTick;
-            	rightDist = -(rightDrive.getTachoCount() - initRightTick) * inchesPerTick;
+            	updateEncoders();
 
             	System.out.println(leftDist + "," + rightDist + ";" + turnCount);
             	
@@ -74,14 +79,14 @@ public class AutoAlignNXT {
 
 	static void execute() {
 
-		if (arcLength > 0) {
-			//System.out.println("Shifting RIGHT");
-
+		if (arcLength > 0) { //SHIFT RIGHT
 			if (turnCount == 0) { // step 0: left wheel forward
 				if (Math.abs(leftDist)  < arcLength) {
 					leftPower = speed;
 				} else {
 					leftPower = 0;
+					resetEncoders();
+					updateEncoders();
 					turnCount = 1;
 				}
 			}
@@ -91,7 +96,20 @@ public class AutoAlignNXT {
 					rightPower = speed;
 				} else {
 					rightPower = 0;
+					resetEncoders();
+					updateEncoders();
 					turnCount = 2;
+				}
+			}
+			
+			if (turnCount == 2) { //both wheels forward
+				if ((Math.abs(rightDist) + Math.abs(leftDist))/2.0 < forwardDist) {
+					leftPower = speed;
+					rightPower = speed;
+				} else {
+					leftPower = 0;
+					rightPower = 0;
+					turnCount = 3;
 				}
 			}
 			
@@ -101,44 +119,17 @@ public class AutoAlignNXT {
 
 		} else {
 			System.out.println("Shifting LEFT");
-
-			if (turnCount == 0) { // step 0: right wheel back
-				if (rightDist > arcLength) {
-					rightPower = -speed;
-				} else {
-					rightPower = 0;
-					turnCount = 1;
-				}
-			}
-
-			if (turnCount == 1) { // step 1: left wheel back
-				if (leftDist > arcLength) {
-					leftPower = -speed;
-				} else {
-					leftPower = 0;
-					turnCount = 2;
-				}
-			}
-
-			if (turnCount == 2) { // step 2: right wheel forward
-				if (rightDist < 0) {
-					rightPower = speed;
-				} else {
-					rightPower = 0;
-					turnCount = 3;
-				}
-			}
-
-			if (turnCount == 3) { // step 3: left wheel forward
-				if (leftDist < 0) {
-					leftPower = speed;
-				} else {
-					leftPower = 0;
-					turnCount = 4;
-				}
-			}
-
 		}
+	}
+	
+	 static void resetEncoders() {
+		initLeftTick = leftDrive.getTachoCount();
+	    initRightTick = rightDrive.getTachoCount();
+	}
+	
+	static void updateEncoders() {
+	    leftDist = -(leftDrive.getTachoCount() - initLeftTick) * inchesPerTick;
+    	rightDist = -(rightDrive.getTachoCount() - initRightTick) * inchesPerTick;
 	}
 	
 
