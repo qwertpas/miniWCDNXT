@@ -18,7 +18,7 @@ public class PID {
     public PID(double kP, double kI, double kD, double tolerance){
         this.kP = kP;
         this.kI = kI;
-        this.kI = kD;
+        this.kD = kD;
         this.tolerance = tolerance;
     }
 
@@ -39,7 +39,7 @@ public class PID {
         }
         
         P = kP * error;
-        I = kI * (I + error);
+        I = I + (kI*error);
         D = kI * (lastError - error);
 
 

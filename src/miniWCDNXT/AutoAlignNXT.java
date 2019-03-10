@@ -23,7 +23,7 @@ public class AutoAlignNXT {
 	static double forwardDist; //distance still needed to reach target after shift
 	static double initLeftTick, initRightTick;
 	static double leftDist, rightDist;
-	static int leftPower, rightPower = 0;
+	static double leftPower, rightPower = 0;
 	static int turnCount = 0;
 	
 	static PID leftPID;
@@ -44,16 +44,18 @@ public class AutoAlignNXT {
 		
 		System.out.println("arc:" + arcLength + " d:" + forwardDist);
 		
-		leftPID = new PID(1,0,0,0.5);
-		rightPID = new PID(1,0,0,0.5);
+		
 		
         Sound.beepSequenceUp();   // make sound when ready.
 
         
         while(true){
+        	
         	Button.waitForAnyPress(); //BUTTON PRESS
         	turnCount = 0;
         	resetEncoders();
+        	leftPID = new PID(6.0,0.03,0,0.5);
+    		rightPID = new PID(6.0,0.03,0,0.5);
         	
         	
         	
@@ -63,12 +65,15 @@ public class AutoAlignNXT {
             while(turnCount != 3){
 
             	updateEncoders();
+            	
+            	leftPower = limit(leftPower, 1);
 
-            	System.out.println(leftDist + "," + rightDist + ";" + turnCount);
+
+            	//System.out.println(leftDist + "," + rightDist + ";" + turnCount);
             	
             	execute();
-            	leftDrive.setPower(leftPower);
-            	rightDrive.setPower(rightPower);
+            	leftDrive.setPower((int) Math.round(leftPower));
+            	rightDrive.setPower((int) Math.round(rightPower));
             }
             
             System.out.println("DONE!");
@@ -81,8 +86,10 @@ public class AutoAlignNXT {
 
 		if (arcLength > 0) { //SHIFT RIGHT
 			if (turnCount == 0) { // step 0: left wheel forward
-				if (Math.abs(leftDist)  < arcLength) {
-					leftPower = speed;
+				if (!leftPID.inTolerance()){
+					leftPID.loop(leftDist, arcLength);
+					leftPower = leftPID.getPower();
+					System.out.println(Math.round(leftPID.P) + ";" + Math.round(leftPID.I));
 				} else {
 					leftPower = 0;
 					resetEncoders();
@@ -92,8 +99,9 @@ public class AutoAlignNXT {
 			}
 
 			if (turnCount == 1) { // step 1: right wheel forward
-				if (Math.abs(rightDist) < arcLength) {
-					rightPower = speed;
+				if (!rightPID.inTolerance()){
+					rightPID.loop(rightDist, arcLength);
+					rightPower = rightPID.getPower();
 				} else {
 					rightPower = 0;
 					resetEncoders();
@@ -103,7 +111,7 @@ public class AutoAlignNXT {
 			}
 			
 			if (turnCount == 2) { //both wheels forward
-				if ((Math.abs(rightDist) + Math.abs(leftDist))/2.0 < forwardDist) {
+				if ((rightDist + leftDist)/2.0 < forwardDist) {
 					leftPower = speed;
 					rightPower = speed;
 				} else {
@@ -132,5 +140,14 @@ public class AutoAlignNXT {
     	rightDist = -(rightDrive.getTachoCount() - initRightTick) * inchesPerTick;
 	}
 	
+	public static double limit(double val, double limit) {
+		if (val > limit) {
+			return limit;
+		} else if (val < -limit) {
+			return -limit;
+		} else {
+			return val;
+		}
+	}
 
 }
