@@ -5,7 +5,7 @@ import lejos.nxt.MotorPort;
 import lejos.nxt.NXTMotor;
 import lejos.nxt.Sound;
 
-public class AutoAlignNXT {
+public class AutoAlignNXTVision {
 
 	static NXTMotor leftDrive;
 	static NXTMotor rightDrive;
@@ -14,11 +14,14 @@ public class AutoAlignNXT {
 	static final double inchesPerTick = 14.3/1000.0; //tested on LEGO technic balloon wheels
 	static final double wheelbase = 6.5; //wheelbase diameter/width in inches
 	
-	static final double shiftDist = 10.0; //desired shift dist
-	static final double y = 10.0; //initial distance to target
+	//GIVEN VISION TARGET INFO
+	static final double x = 1.5; //desired distance to target sideways
+	static final double y = 7.0; //initial distance to target forwards
+	static final double skew = 10; //initial degrees angle to target (positive if robot is facing right of target)
 
-	static double turnAngle; //calculated angle that robot turns in order to shift, in radians
-	static double arcLength; //calculated distance wheel needs to travel in each step
+	static double shiftDist; //sideways distance to robot measured from target (distance from the perpendicular line out of target to robot center)
+	static double turnAngleL, turnAngleR; //calculated angle that robot turns in order to shift, in radians
+	static double arcLengthL, arcLengthR; //calculated distance wheel needs to travel in each step
 	static double forwardDist; //distance still needed to reach target after shift
 	static double initLeftTick, initRightTick;
 	static double leftDist, rightDist;
@@ -30,18 +33,26 @@ public class AutoAlignNXT {
 
 
 	public static void main(String[] args) {
-		System.out.println("Motors Initializing");
 		leftDrive = new NXTMotor(MotorPort.C);
 		rightDrive = new NXTMotor(MotorPort.A);
 		leftDrive.backward();
 		rightDrive.backward();
-		System.out.println("Motors Initialized");
 		
-		turnAngle = Math.acos(1 - (shiftDist/wheelbase));
-		arcLength = wheelbase * turnAngle;
-		forwardDist = y - (wheelbase * Math.sin(turnAngle));
+		double skewRad = skew*Math.PI/180.0;
+		double d = Math.sqrt(x*x + y*y); //shortest distance from robot to target
 		
-		System.out.println("arc:" + arcLength + " d:" + forwardDist + "ang:" + turnAngle);
+		shiftDist = d * Math.cos(skewRad);
+		forwardDist = d * Math.sin(skewRad);
+		
+		turnAngleL = Math.acos(1 - (shiftDist/wheelbase)) - (skewRad/2.0);
+		turnAngleR = Math.acos(1 - (shiftDist/wheelbase)) + (skewRad/2.0);
+
+		arcLengthL = wheelbase * turnAngleL;
+		arcLengthR = wheelbase * turnAngleR;
+		
+		forwardDist = forwardDist - (wheelbase * Math.sin(Math.acos(1 - (shiftDist/wheelbase)))); //distance left to travel after the s-curve
+		
+		System.out.println("arcL:" + arcLengthL + " arcR:" + arcLengthR + "fwd:" + forwardDist);
 		
 		
 		
@@ -53,8 +64,8 @@ public class AutoAlignNXT {
         	Button.waitForAnyPress(); //BUTTON PRESS
         	turnCount = 0;
         	resetEncoders();
-        	leftPID = new PID(6.0,0.006,0,0.5);
-    		rightPID = new PID(6.0,0.006,0,0.5);
+        	leftPID = new PID(3.0,0.05,0,0.05);
+    		rightPID = new PID(3.0,0.05,0,0.05);
 
             while(turnCount != 3){
 
@@ -79,9 +90,10 @@ public class AutoAlignNXT {
 
 	static void execute() {
 
-		if (arcLength > 0) { //SHIFT RIGHT
+		if (shiftDist > 0) { //SHIFT RIGHT
 			if (turnCount == 0) { // step 0: left wheel forward
-				leftPID.loop(leftDist, arcLength);
+				leftPID.loop(leftDist, arcLengthL);
+				
 				if (!leftPID.inTolerance()){
 					leftPower = leftPID.getPower();
 				} else {
@@ -93,7 +105,7 @@ public class AutoAlignNXT {
 			}
 
 			if (turnCount == 1) { // step 1: right wheel forward
-				rightPID.loop(rightDist, arcLength);
+				rightPID.loop(rightDist, arcLengthR);
 				if (!rightPID.inTolerance()){
 					rightPower = rightPID.getPower();
 				} else {

@@ -1,12 +1,14 @@
 package miniWCDNXT;
 
-public class PID {
+
+
+public class PIDB {
 
 
 
 
     //constants
-    double kP, kI, kD = 0;
+    double kP, kI, kD, kB = 0;
     double tolerance;
 
 
@@ -18,10 +20,11 @@ public class PID {
     Boolean inTolerance = false;
     
     
-    public PID(double kP, double kI, double kD, double tolerance){
+    public PIDB(double kP, double kI, double kD, double kB, double tolerance){
         this.kP = kP;
         this.kI = kI;
         this.kD = kD;
+        this.kB = kB;
         this.tolerance = tolerance;
     }
 
@@ -35,18 +38,24 @@ public class PID {
         }
         error = this.target - this.currentValue;
         if (Math.abs(error) < tolerance){
-            I = 0;
             inTolerance = true;
         }else{
             inTolerance = false;
         }
+
+
+        if(Math.signum(lastError) != Math.signum(error)){ //"bounces" back after reaching target, braking
+            System.out.println("reset");
+            I = -kB * I;
+        }
         
         P = kP * error;
         I = I + (kI*error);
-        D = kD * (lastError - error);
+        D = kD * (error - lastError) / error;
 
 
         power = P + I + D;
+        lastError = error;
     }
 
 
@@ -70,10 +79,21 @@ public class PID {
         I=0;
         D=0;
     }
-    
-    public double getRate(){
-    	return D/kD;
+
+
+    public double getP(){
+        return P;
     }
+    public double getI(){
+        return I;
+    }
+    public double getD(){
+        return D;
+    }
+
+
+
+
 
 
 
